@@ -74,6 +74,20 @@ class TaskApp:
                 task["full_name"] = t.get("full_name", "")
                 break
 
+    def get_selected_task(self):
+        sel = self.tree.selection()
+        if not sel:
+            return None
+
+        item = sel[0]
+        tag = self.tree.item(item, "tags")[0]
+
+        for task in self.tasks:
+            if str(id(task)) == tag:
+                return task
+
+        return None
+
     def add_task(self):
         self.tasks.append({
             "id": "RF",
@@ -96,8 +110,10 @@ class TaskApp:
         if not sel:
             return
 
-        index = self.tree.index(sel[0])
-        del self.tasks[index]
+        task = self.get_selected_task()
+        if not task:
+            return
+        self.tasks.remove(task)
 
         save_tasks(self.tasks)
         self.refresh_table()
@@ -107,8 +123,10 @@ class TaskApp:
         if not sel:
             return
 
-        index = self.tree.index(sel[0])
-        self.tasks[index]["status"] = status
+        task = self.get_selected_task()
+        if not task:
+            return
+        task["status"] = status
 
         save_tasks(self.tasks)
         self.refresh_table()
@@ -196,15 +214,16 @@ class TaskApp:
                 task["id"],
                 task["name"],
                 task.get("status", "")
-            ))
+            ), tags=(str(id(task)),))
 
     def on_select(self, event):
         sel = self.tree.selection()
         if not sel:
             return
 
-        index = self.tree.index(sel[0])
-        task = self.tasks[index]
+        task = self.get_selected_task()
+        if not task:
+            return
 
         self.details.delete(*self.details.get_children())
 
@@ -264,7 +283,9 @@ class TaskApp:
                 elif col_i == 2:
                     task["status"] = new
 
+
             else:
+
                 if field == "Название АС":
                     task["name"] = new
                 elif field == "Тип работ":
@@ -273,12 +294,18 @@ class TaskApp:
                     task["secure"] = new
                 elif field == "Номер RF":
                     task["id"] = new
+                elif field == "Номер задачи MP8":
+                    task["mp8"] = new
                 elif field == "Статус":
                     task["status"] = new
                 elif field == "Полное имя":
                     task["full_name"] = new
                 elif field == "SD":
                     task["second_id"] = new
+                elif field == "Пентест/Аудит":
+                    task["pentest/audit"] = new
+                elif field == "СКИБ":
+                    task["compliance"] = new
                 elif field == "Комментарий":
                     task["comment"] = new
 
