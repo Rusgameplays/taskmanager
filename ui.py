@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from config import *
-from data import load_tasks, save_tasks
+from data import load_tasks, save_tasks, load_report, save_report
 
 
 class TaskApp:
@@ -74,6 +74,78 @@ class TaskApp:
                 task["full_name"] = t.get("full_name", "")
                 break
 
+    def open_report(self):
+        win = tk.Toplevel(self.root)
+        win.title("Отчет")
+        win.geometry("600x600")
+        win.configure(bg=bg)
+
+        columns = ("week", "scans", "closed")
+
+        tree = ttk.Treeview(win, columns=columns, show="headings")
+        tree.heading("week", text="Неделя")
+        tree.heading("scans", text="Сканы")
+        tree.heading("closed", text="Закрытые")
+        tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        from datetime import datetime, timedelta
+
+        report_data = load_report()
+
+        def get_week_range():
+            today = datetime.now()
+            friday = today - timedelta(days=(today.weekday() - 4) % 7)
+            thursday = friday + timedelta(days=6)
+            return f"{friday.strftime('%d.%m')} - {thursday.strftime('%d.%m')}"
+
+        def refresh():
+            tree.delete(*tree.get_children())
+            for row in report_data:
+                tree.insert("", tk.END, values=(row["week"], row["scans"], row["closed"]))
+
+        def add_week():
+            week = get_week_range()
+
+            for row in report_data:
+                if row["week"] == week:
+                    return
+
+            report_data.append({
+                "week": week,
+                "scans": 0,
+                "closed": 0
+            })
+
+            save_report(report_data)
+            refresh()
+
+        def change_value(field, delta):
+            selected = tree.selection()
+            if not selected:
+                return
+
+            index = tree.index(selected[0])
+            report_data[index][field] += delta
+
+            if report_data[index][field] < 0:
+                report_data[index][field] = 0
+
+            save_report(report_data)
+            refresh()
+
+
+        btn_frame = tk.Frame(win, bg=bg)
+        btn_frame.pack(fill=tk.X, pady=5)
+
+        tk.Button(btn_frame, text="+ Сканы", command=lambda: change_value("scans", 1)).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="- Сканы", command=lambda: change_value("scans", -1)).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(btn_frame, text="+ Закрытые", command=lambda: change_value("closed", 1)).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="- Закрытые", command=lambda: change_value("closed", -1)).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(btn_frame, text="Добавить неделю", command=add_week).pack(side=tk.RIGHT, padx=5)
+
+        refresh()
     def get_selected_task(self):
         sel = self.tree.selection()
         if not sel:
@@ -163,8 +235,9 @@ class TaskApp:
 
         tk.Button(self.filter_frame, text="Добавить", command=self.add_task).pack(side=tk.LEFT, padx=5, pady=5)
         tk.Button(self.filter_frame, text="Удалить", command=self.delete_task).pack(side=tk.LEFT, padx=5, pady=5)
+        tk.Button(self.filter_frame, text="Для отчета", command=self.open_report).pack(side=tk.LEFT, padx=5, pady=5)
 
-        # main table
+
         self.tree = ttk.Treeview(self.left, columns=("ID", "Name", "Status"), show="headings")
         self.tree.heading("ID", text="Номер")
         self.tree.heading("Name", text="Система")

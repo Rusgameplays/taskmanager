@@ -1,4 +1,5 @@
 FILE_NAME = "tasks.json"
+REPORT_FILE = "report.json"
 
 default_font = ("Calibri", 10)
 bold_font = ("Calibri", 10, "bold")
