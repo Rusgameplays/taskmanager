@@ -9,7 +9,7 @@ class TaskApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Task Manager")
-        self.root.geometry("1080x500")
+        self.root.geometry("1200x600")
 
         self.tasks = load_tasks()
 
@@ -30,6 +30,7 @@ class TaskApp:
         style.configure(".", font=default_font)
         style.configure("Treeview.Heading", font=bold_font)
 
+
         self.root.configure(bg=bg)
 
         style.configure("Treeview",
@@ -40,7 +41,26 @@ class TaskApp:
 
         style.map("Treeview",
                   background=[("selected", "#2f4f4f")],
-                  foreground=[("selected", "#ffffff")])
+                  foreground=[("selected", "#ffffff")]
+                  )
+
+        style.map("Treeview.Heading",
+                  background=[
+                      ("active", "#2b2b2b"),
+                      ("pressed", "#1f1f1f")
+                  ],
+                  foreground=[
+                      ("active", "#cccccc"),
+                      ("pressed", "#ffffff")
+                  ]
+                  )
+
+        style.configure("TFrame", background=bg)
+        style.configure("TLabel", background=bg, foreground=fg)
+        style.configure("TButton", background=bg, foreground=fg)
+        style.configure("TEntry", fieldbackground=field_bg, foreground=fg)
+        style.configure("TCombobox", fieldbackground=field_bg, foreground=fg)
+        style.configure("TPanedwindow", background=bg)
 
 
 
@@ -98,13 +118,13 @@ class TaskApp:
         self.paned = ttk.Panedwindow(self.root, orient=tk.HORIZONTAL)
         self.paned.pack(fill=tk.BOTH, expand=True)
 
-        self.left = ttk.Frame(self.paned)
+        self.left = ttk.Frame(self.paned, )
         self.right = ttk.Frame(self.paned, width=320)
 
         self.paned.add(self.left, weight=3)
         self.paned.add(self.right, weight=1)
 
-        self.filter_frame = tk.Frame(self.left)
+        self.filter_frame = ttk.Frame(self.left)
         self.filter_frame.pack(fill=tk.X)
 
         self.filter_name = tk.StringVar()
@@ -140,7 +160,7 @@ class TaskApp:
         self.details.pack(fill=tk.BOTH, expand=True)
 
         # buttons
-        btn = tk.Frame(self.right)
+        btn = ttk.Frame(self.right)
         btn.pack(fill=tk.X, padx=10, pady=10)
 
 
