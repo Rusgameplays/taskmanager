@@ -5,10 +5,13 @@ def add_task(tasks):
         "id": "RF",
         "name": "АС",
         "type": "",
+        "mp8":"",
         "secure": "Не задан",
         "status": "В работе",
         "full_name": "",
         "second_id": "SD",
+        "pentest/audit": "",
+        "compliance": "",
         "comment": ""
     }
     tasks.append(new)

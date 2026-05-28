@@ -59,10 +59,13 @@ class TaskApp:
             "id": "RF",
             "name": "АС",
             "type": "",
+            "mp8":"",
             "secure": "Не задан",
             "status": "В работе",
             "full_name": "",
             "second_id": "SD",
+            "pentest/audit": "Не запущен",
+            "compliance": "Не запущен",
             "comment": ""
         })
         save_tasks(self.tasks)
@@ -90,7 +93,6 @@ class TaskApp:
         save_tasks(self.tasks)
         self.refresh_table()
 
-    # ---------------- UI ----------------
 
     def build_ui(self):
         self.paned = ttk.Panedwindow(self.root, orient=tk.HORIZONTAL)
@@ -188,14 +190,17 @@ class TaskApp:
 
         self.details.insert("", tk.END, values=("Название АС", task["name"]))
         self.details.insert("", tk.END, values=("Тип работ", task["type"]))
+        self.details.insert("", tk.END, values=("Номер задачи MP8", task["mp8"]))
         self.details.insert("", tk.END, values=("PCI DSS", task["secure"]))
         self.details.insert("", tk.END, values=("Номер RF", task["id"]))
         self.details.insert("", tk.END, values=("Статус", task["status"]))
+        self.details.insert("", tk.END, values=("Пентест/Аудит", task["pentest/audit"]))
+        self.details.insert("", tk.END, values=("СКИБ", task["compliance"]))
         self.details.insert("", tk.END, values=("Полное имя", task["full_name"]))
-        self.details.insert("", tk.END, values=("SD", task["second_id"]))
+        self.details.insert("", tk.END, values=("Номер SD", task["second_id"]))
         self.details.insert("", tk.END, values=("Комментарий", task["comment"]))
 
-    # ---------------- EDIT ----------------
+
 
     def edit_any_cell(self, event, table):
         region = table.identify("region", event.x, event.y)
