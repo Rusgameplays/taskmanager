@@ -20,6 +20,7 @@ class TaskApp:
 
     # ---------------- STYLES ----------------
 
+
     def setup_styles(self):
         style = ttk.Style()
         try:
@@ -55,14 +56,48 @@ class TaskApp:
                   ]
                   )
 
+        style.configure("TCombobox",
+                        fieldbackground=field_bg,
+                        background=field_bg,
+                        foreground=bg,
+                        bordercolor=field_bg,
+                        lightcolor=field_bg,
+                        darkcolor=field_bg,
+                        arrowcolor=fg
+                        )
+        style.map("TCombobox",
+                  fieldbackground=[("readonly", field_bg)],
+                  background=[("readonly", field_bg)],
+                  foreground=[("readonly", fg)]
+                  )
+
+        style.configure("Colored.TCombobox",
+                        fieldbackground=field_bg,
+                        background=field_bg,
+                        foreground=fg)
+
         style.configure("TFrame", background=bg)
         style.configure("TLabel", background=bg, foreground=fg)
         style.configure("TButton", background=bg, foreground=fg)
         style.configure("TEntry", fieldbackground=field_bg, foreground=fg)
-        style.configure("TCombobox", fieldbackground=field_bg, foreground=fg)
         style.configure("TPanedwindow", background=bg)
 
 
+
+    def get_row_tag(self, task):
+        values = [
+            task.get("pentest/audit", "").lower(),
+            task.get("compliance", "").lower()
+        ]
+
+        if any(v == "не запущен" for v in values):
+            return "red"
+        elif any(v == "запущен" for v in values):
+            return "yellow"
+        elif all(v == "отчет готов" for v in values if v):
+            return "green"
+
+        return ""
 
     def auto_fill_from_system(self, task):
         for t in self.tasks:
@@ -190,6 +225,11 @@ class TaskApp:
         save_tasks(self.tasks)
         self.refresh_table()
 
+    def copy_to_clipboard(self, text):
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+        self.root.update()
+
     def set_status(self, status):
         sel = self.tree.selection()
         if not sel:
@@ -211,8 +251,9 @@ class TaskApp:
         self.left = ttk.Frame(self.paned, )
         self.right = ttk.Frame(self.paned, width=320)
 
-        self.paned.add(self.left, weight=3)
-        self.paned.add(self.right, weight=1)
+        self.paned.add(self.left, weight=1)
+        self.paned.add(self.right, weight=11)
+
 
         self.filter_frame = ttk.Frame(self.left)
         self.filter_frame.pack(fill=tk.X)
@@ -244,28 +285,19 @@ class TaskApp:
         self.tree.heading("Status", text="Статус")
         self.tree.pack(fill=tk.BOTH, expand=True)
 
+
         # details
-        self.details = ttk.Treeview(self.right, columns=("F", "V"), show="headings")
-        self.details.heading("F", text="Поле")
-        self.details.heading("V", text="Значение")
-        self.details.pack(fill=tk.BOTH, expand=True)
-
-        # buttons
-        btn = ttk.Frame(self.right)
-        btn.pack(fill=tk.X, padx=10, pady=10)
-
-
-        tk.Button(btn, text="В работу", command=lambda: self.set_status("В работе")).pack(fill=tk.X, pady=2)
-        tk.Button(btn, text="Ожидание", command=lambda: self.set_status("Ожидание")).pack(fill=tk.X, pady=2)
-        tk.Button(btn, text="Закрыто", command=lambda: self.set_status("Закрыто")).pack(fill=tk.X, pady=2)
+        self.details_frame = ttk.Frame(self.right)
+        self.details_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         # events
         self.tree.bind("<<TreeviewSelect>>", self.on_select)
         self.tree.bind("<Double-1>", lambda e: self.edit_any_cell(e, self.tree))
-        self.details.bind("<Double-1>", lambda e: self.edit_any_cell(e, self.details))
+
 
         self.filter_name.trace_add("write", lambda *args: self.refresh_table())
         self.filter_status.trace_add("write", lambda *args: self.refresh_table())
+
 
     # ---------------- TABLE ----------------
 
@@ -283,11 +315,26 @@ class TaskApp:
             if status and task.get("status") != status:
                 continue
 
-            self.tree.insert("", tk.END, values=(
-                task["id"],
-                task["name"],
-                task.get("status", "")
-            ), tags=(str(id(task)),))
+            tag = self.get_row_tag(task)
+
+            self.tree.insert(
+                "",
+                tk.END,
+                values=(
+                    task["id"],
+                    task["name"],
+                    task.get("status", "")
+                ),
+                tags=(str(id(task)), tag)
+            )
+
+    def update_status(self, task, status):
+        task["status"] = status
+        save_tasks(self.tasks)
+        self.refresh_table()
+        self.on_select(None)
+
+
 
     def on_select(self, event):
         sel = self.tree.selection()
@@ -298,20 +345,134 @@ class TaskApp:
         if not task:
             return
 
-        self.details.delete(*self.details.get_children())
+        for widget in self.details_frame.winfo_children():
+            widget.destroy()
 
-        self.details.insert("", tk.END, values=("Название АС", task["name"]))
-        self.details.insert("", tk.END, values=("Тип работ", task["type"]))
-        self.details.insert("", tk.END, values=("Номер задачи MP8", task["mp8"]))
-        self.details.insert("", tk.END, values=("PCI DSS", task["secure"]))
-        self.details.insert("", tk.END, values=("Номер RF", task["id"]))
-        self.details.insert("", tk.END, values=("Статус", task["status"]))
-        self.details.insert("", tk.END, values=("Пентест/Аудит", task["pentest/audit"]))
-        self.details.insert("", tk.END, values=("СКИБ", task["compliance"]))
-        self.details.insert("", tk.END, values=("Полное имя", task["full_name"]))
-        self.details.insert("", tk.END, values=("Номер SD", task["second_id"]))
-        self.details.insert("", tk.END, values=("Комментарий", task["comment"]))
 
+        tk.Label(self.details_frame,
+                 text=f"{task['id']} — {task['name']}",
+                 bg=field_bg, fg=fg, font=bold_font
+                 ).pack(anchor="w", pady=5)
+
+        def editable_field(title, key):
+            bg_color = field_bg
+
+
+            frame = tk.Frame(self.details_frame, bg=bg_color)
+            frame.pack(fill=tk.X, pady=2)
+
+            def get_color(value):
+                v = value.lower()
+
+                if v == "не запущен":
+                    return "#8b2e2e"
+                elif v == "запущен":
+                    return "#8b7a1a"
+                elif v == "отчет готов":
+                    return "#2e6b3a"
+
+                return field_bg
+
+            value = task.get(key, "")
+
+            label_bg = field_bg
+            if key in ["pentest/audit", "compliance"]:
+                label_bg = get_color(value)
+
+            label = tk.Label(
+                frame,
+                text=title,
+                bg=label_bg,
+                fg=fg,
+                width=18,
+                anchor="w"
+            )
+            label.pack(side=tk.LEFT)
+
+            value = task.get(key, "")
+
+            if title in FIELD_OPTIONS:
+                entry = ttk.Combobox(
+                    frame,
+                    values=FIELD_OPTIONS[title],
+                    state="readonly"
+                )
+                entry.set(value)
+
+            else:
+                entry = tk.Entry(frame, bg=bg_color, fg=fg, insertbackground=fg)
+                entry.insert(0, value)
+
+            entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+            def save(event=None):
+                task[key] = entry.get()
+                save_tasks(self.tasks)
+                self.on_select(None)
+
+
+            entry.bind("<FocusOut>", save)
+            entry.bind("<Return>", save)
+
+            if title in ["Номер RF", "Номер SD", "Полное имя"]:
+                btn = tk.Button(
+                    frame,
+                    text="📋",
+                    command=lambda v=value: self.copy_to_clipboard(v),
+                    bg=field_bg,
+                    fg=fg,
+                    relief="flat",
+                    width=2
+                )
+                btn.pack(side=tk.RIGHT, padx=5)
+
+        editable_field("Название АС", "name")
+        editable_field("Тип работ", "type")
+        editable_field("Номер задачи MP8", "mp8")
+        editable_field("PCI DSS", "secure")
+        editable_field("Номер RF", "id")
+        editable_field("Статус", "status")
+        editable_field("Пентест/Аудит", "pentest/audit")
+        editable_field("СКИБ", "compliance")
+        editable_field("Полное имя", "full_name")
+        editable_field("Номер SD", "second_id")
+        editable_field("Комментарий", "comment")
+
+        tk.Label(self.details_frame,
+                 text="Комментарий:",
+                 bg=field_bg, fg=fg, font=bold_font
+                 ).pack(anchor="w", pady=(10, 2))
+
+        comment = tk.Text(self.details_frame,
+                          height=6,
+                          wrap="word",
+                          bg=field_bg,
+                          fg=fg,
+                          insertbackground=fg)
+
+        comment.insert("1.0", task["comment"])
+        comment.pack(fill=tk.BOTH, expand=True)
+
+        def save_comment(event=None):
+            task["comment"] = comment.get("1.0", tk.END).strip()
+            save_tasks(self.tasks)
+
+        comment.bind("<FocusOut>", save_comment)
+
+        btns = tk.Frame(self.details_frame, bg=field_bg)
+        btns.pack(fill=tk.X, pady=10)
+
+        tk.Button(btns, text="В работу",
+                  command=lambda: self.update_status(task, "В работе")
+                  ).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+
+        tk.Button(btns, text="Ожидание",
+                  command=lambda: self.update_status(task, "Ожидание")
+                  ).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+
+        tk.Button(btns, text="Закрыто",
+                  command=lambda: self.update_status(task, "Закрыто")
+                  ).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
 
 
     def edit_any_cell(self, event, table):
@@ -328,7 +489,7 @@ class TaskApp:
         values = list(item["values"])
         col_i = int(col[1:]) - 1
 
-        field = values[0] if table == self.details else None
+        field = None
 
         entry = tk.Entry(table)
         entry.place(x=x, y=y, width=w, height=h)
