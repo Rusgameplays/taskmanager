@@ -373,7 +373,7 @@ class TaskApp:
                     task["status"] = new
                 elif field == "Полное имя":
                     task["full_name"] = new
-                elif field == "SD":
+                elif field == "Номер SD":
                     task["second_id"] = new
                 elif field == "Пентест/Аудит":
                     task["pentest/audit"] = new
