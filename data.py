@@ -3,7 +3,6 @@ import os
 from config import FILE_NAME, REPORT_FILE
 
 
-
 def load_tasks():
     if not os.path.exists(FILE_NAME):
         with open(FILE_NAME, "w", encoding="utf-8") as f:

@@ -127,10 +127,16 @@ class TaskApp:
 
         report_data = load_report()
 
-        def get_week_range():
+        def get_week_range(offset=0):
             today = datetime.now()
+
+
             friday = today - timedelta(days=(today.weekday() - 4) % 7)
+
+            friday = friday + timedelta(days=7 * offset)
+
             thursday = friday + timedelta(days=6)
+
             return f"{friday.strftime('%d.%m')} - {thursday.strftime('%d.%m')}"
 
         def refresh():
@@ -139,14 +145,22 @@ class TaskApp:
                 tree.insert("", tk.END, values=(row["week"], row["scans"], row["closed"]))
 
         def add_week():
-            week = get_week_range()
+            current_week = get_week_range(0)
+            next_week = get_week_range(1)
 
-            for row in report_data:
-                if row["week"] == week:
-                    return
+            existing_weeks = {row["week"] for row in report_data}
+
+
+            if current_week in existing_weeks and next_week in existing_weeks:
+                return
+
+            if current_week not in existing_weeks:
+                new_week = current_week
+            else:
+                new_week = next_week
 
             report_data.append({
-                "week": week,
+                "week": new_week,
                 "scans": 0,
                 "closed": 0
             })
