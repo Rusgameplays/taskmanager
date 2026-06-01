@@ -506,7 +506,10 @@ class TaskApp:
                 entry.destroy()
                 return
 
-            task = self.tasks[self.tree.index(sel[0])]
+            task = self.get_selected_task()
+            if not task:
+                entry.destroy()
+                return
 
             if table == self.tree:
                 if col_i == 0:
