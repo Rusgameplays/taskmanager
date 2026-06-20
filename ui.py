@@ -1,6 +1,12 @@
-import tkinter as tk
-from tkinter import ttk
 
+import tkinter as tk
+import uuid
+from tkinter import ttk
+import os
+import sys
+import shutil
+
+from pathlib import Path
 from config import *
 from data import load_tasks, save_tasks, load_report, save_report
 
@@ -12,14 +18,43 @@ class TaskApp:
         self.root.geometry("1200x600")
 
         self.tasks = load_tasks()
+        for task in self.tasks:
+            self.ensure_folder_id(task)
+
+        save_tasks(self.tasks)
 
         self.setup_styles()
 
         self.build_ui()
         self.refresh_table()
 
-    # ---------------- STYLES ----------------
 
+    def ensure_folder_id(self, task):
+        if "folder_id" not in task or not task["folder_id"]:
+            task["folder_id"] = str(uuid.uuid4())
+
+    def open_task_folder(self, task):
+        folder_id = task.get("folder_id")
+
+        if not folder_id:
+            return
+
+        path = Path("tasks") / folder_id
+        abs_path = os.path.abspath(path)
+
+
+        if not path.exists():
+            path.mkdir(parents=True, exist_ok=True)
+            save_tasks(self.tasks)
+
+        if sys.platform == "win32":
+            os.startfile(abs_path)
+
+        elif sys.platform == "darwin":
+            os.system(f'open "{abs_path}"')
+
+        else:
+            os.system(f'xdg-open "{abs_path}"')
 
     def setup_styles(self):
         style = ttk.Style()
@@ -210,19 +245,28 @@ class TaskApp:
         return None
 
     def add_task(self):
-        self.tasks.append({
+        folder_id = str(uuid.uuid4())
+
+        task = {
             "id": "RF",
             "name": "АС",
             "type": "",
-            "mp8":"",
+            "mp8": "",
             "secure": "Не задан",
             "status": "В работе",
             "full_name": "",
             "second_id": "SD",
             "pentest/audit": "Не запущен",
             "compliance": "Не запущен",
-            "comment": ""
-        })
+            "comment": "",
+            "folder_id": folder_id
+        }
+
+        self.tasks.append(task)
+
+        folder_path = Path("tasks") / folder_id
+        folder_path.mkdir(parents=True, exist_ok=True)
+
         save_tasks(self.tasks)
         self.refresh_table()
 
@@ -234,6 +278,15 @@ class TaskApp:
         task = self.get_selected_task()
         if not task:
             return
+
+        # защита для старых задач
+        self.ensure_folder_id(task)
+
+        folder_path = Path("tasks") / task["folder_id"]
+
+        if folder_path.exists():
+            shutil.rmtree(folder_path)
+
         self.tasks.remove(task)
 
         save_tasks(self.tasks)
@@ -475,6 +528,12 @@ class TaskApp:
 
         btns = tk.Frame(self.details_frame, bg=field_bg)
         btns.pack(fill=tk.X, pady=10)
+
+        tk.Button(
+            btns,
+            text="Папка",
+            command=lambda: self.open_task_folder(task)
+        ).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
 
         tk.Button(btns, text="В работу",
                   command=lambda: self.update_status(task, "В работе")
