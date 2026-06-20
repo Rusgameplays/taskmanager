@@ -1,11 +1,13 @@
 
 import tkinter as tk
 import uuid
-from tkinter import ttk
+from tkinter import ttk, filedialog
 import os
 import sys
 import shutil
+import json
 
+from parser import *
 from pathlib import Path
 from config import *
 from data import load_tasks, save_tasks, load_report, save_report
@@ -13,6 +15,7 @@ from data import load_tasks, save_tasks, load_report, save_report
 
 class TaskApp:
     def __init__(self, root):
+
         self.root = root
         self.root.title("Task Manager")
         self.root.geometry("1200x600")
@@ -23,7 +26,9 @@ class TaskApp:
 
         save_tasks(self.tasks)
 
+        self.segment_filter = set()
         self.setup_styles()
+
 
         self.build_ui()
         self.refresh_table()
@@ -244,6 +249,32 @@ class TaskApp:
 
         return None
 
+    def load_docx(self):
+        task = self.get_selected_task()
+        if not task:
+            return
+
+        path = filedialog.askopenfilename(
+            filetypes=[("Word files", "*.docx")]
+        )
+        if not path:
+            return
+
+        rows = extract_docx_table(path)
+
+        filtered = []
+        for r in rows[1:]:
+            if len(r) >= 8:
+                filtered.append([r[0], r[1], r[2], r[4], r[5], r[7]])
+
+        self.table.delete(*self.table.get_children())
+
+        for row in filtered:
+            self.table.insert("", tk.END, values=row)
+
+        self.save_table_to_task(filtered)
+        self.apply_segment_filter()
+
     def add_task(self):
         folder_id = str(uuid.uuid4())
 
@@ -310,6 +341,96 @@ class TaskApp:
         save_tasks(self.tasks)
         self.refresh_table()
 
+    def copy_all_ips(self):
+        if not hasattr(self, "table"):
+            return
+
+        ips = []
+
+
+        for item in self.table.get_children():
+            row = self.table.item(item)["values"]
+
+            if len(row) >= 5:
+                ip = row[4]  # IP колонка
+                if ip:
+                    ips.append(str(ip))
+
+        if not ips:
+            return
+
+        text = "\n".join(ips)
+
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+        self.root.update()
+
+    def open_segment_filter(self):
+        if not hasattr(self, "table"):
+            return
+
+        win = tk.Toplevel(self.root)
+        win.title("Фильтр Segment")
+        win.geometry("300x400")
+
+        segments = set()
+
+        for item in self.table.get_children():
+            row = self.table.item(item)["values"]
+            if len(row) >= 6 and row[5]:
+                segments.add(str(row[5]))
+
+        segments = sorted(list(segments))
+
+        vars_map = {}
+
+        frame = tk.Frame(win)
+        frame.pack(fill=tk.BOTH, expand=True)
+
+        for seg in segments:
+            var = tk.BooleanVar(value=(seg in self.segment_filter))
+
+            chk = tk.Checkbutton(frame, text=seg, variable=var)
+            chk.pack(anchor="w")
+
+            vars_map[seg] = var
+
+        def apply():
+            self.segment_filter = {
+                seg for seg, var in vars_map.items() if var.get()
+            }
+
+            self.apply_segment_filter()
+            win.destroy()
+
+        tk.Button(win, text="Apply", command=apply).pack(fill=tk.X)
+
+    def apply_segment_filter(self):
+        if not hasattr(self, "table"):
+            return
+
+        self.table.delete(*self.table.get_children())
+
+        task = self.get_selected_task()
+        if not task:
+            return
+
+        path = Path("tasks") / task["folder_id"] / "table.json"
+
+        if not path.exists():
+            return
+
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        for row in data:
+            segment = str(row[5]) if len(row) >= 6 else ""
+
+            if self.segment_filter and segment not in self.segment_filter:
+                continue
+
+            self.table.insert("", tk.END, values=row)
+
 
     def build_ui(self):
         self.paned = ttk.Panedwindow(self.root, orient=tk.HORIZONTAL)
@@ -352,21 +473,58 @@ class TaskApp:
         self.tree.heading("Status", text="Статус")
         self.tree.pack(fill=tk.BOTH, expand=True)
 
-
-        # details
         self.details_frame = ttk.Frame(self.right)
         self.details_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        self.bottom_panel = ttk.Frame(self.right)
+        self.bottom_panel.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        btn_load = tk.Button(
+            self.bottom_panel,
+            text="Загрузить DOCX",
+            command=self.load_docx
+        )
+        btn_load.pack(fill=tk.X, pady=5)
+
+        btn_copy_ip = tk.Button(
+            self.bottom_panel,
+            text="Скопировать IP",
+            command=self.copy_all_ips
+        )
+        btn_copy_ip.pack(fill=tk.X, pady=5)
+
+        btn_filt_segment=tk.Button(
+            self.bottom_panel,
+            text="Фильтр Segment",
+            command=self.open_segment_filter
+        )
+        btn_filt_segment.pack(fill=tk.X, pady=5)
+
+        self.table = ttk.Treeview(
+            self.bottom_panel,
+            columns=("c1", "c2", "c3", "c4", "c5", "c6"),
+            show="headings",
+            height=10,
+            selectmode="extended"
+        )
+
+        headers = ["OS", "DB", "Instances", "Window", "IP", "Segment"]
+
+        for i, h in enumerate(headers):
+            self.table.heading(f"c{i + 1}", text=h)
+            self.table.column(f"c{i + 1}", width=120)
+
+        self.table.pack(fill=tk.BOTH, expand=True)
 
         # events
         self.tree.bind("<<TreeviewSelect>>", self.on_select)
         self.tree.bind("<Double-1>", lambda e: self.edit_any_cell(e, self.tree))
 
 
+
         self.filter_name.trace_add("write", lambda *args: self.refresh_table())
         self.filter_status.trace_add("write", lambda *args: self.refresh_table())
 
-
-    # ---------------- TABLE ----------------
 
     def refresh_table(self):
         self.tree.delete(*self.tree.get_children())
@@ -402,7 +560,6 @@ class TaskApp:
         self.on_select(None)
 
 
-
     def on_select(self, event):
         sel = self.tree.selection()
         if not sel:
@@ -413,7 +570,8 @@ class TaskApp:
             return
 
         for widget in self.details_frame.winfo_children():
-            widget.destroy()
+            if widget != getattr(self, "bottom_panel", None):
+                widget.destroy()
 
 
         tk.Label(self.details_frame,
@@ -518,7 +676,7 @@ class TaskApp:
                           insertbackground=fg)
 
         comment.insert("1.0", task["comment"])
-        comment.pack(fill=tk.BOTH, expand=True)
+        comment.pack(fill=tk.BOTH)
 
         def save_comment(event=None):
             task["comment"] = comment.get("1.0", tk.END).strip()
@@ -533,21 +691,36 @@ class TaskApp:
             btns,
             text="Папка",
             command=lambda: self.open_task_folder(task)
-        ).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+        ).pack(side=tk.LEFT, padx=2)
 
         tk.Button(btns, text="В работу",
                   command=lambda: self.update_status(task, "В работе")
-                  ).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+                  ).pack(side=tk.LEFT, padx=2)
 
         tk.Button(btns, text="Ожидание",
                   command=lambda: self.update_status(task, "Ожидание")
-                  ).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+                  ).pack(side=tk.LEFT, padx=2)
 
         tk.Button(btns, text="Закрыто",
                   command=lambda: self.update_status(task, "Закрыто")
-                  ).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+                  ).pack(side=tk.LEFT, padx=2)
+        self.segment_filter = set()
+        self.load_task_table(task)
 
+    def load_task_table(self, task):
+        folder = Path("tasks") / task["folder_id"]
+        path = folder / "table.json"
 
+        self.table.delete(*self.table.get_children())
+
+        if not path.exists():
+            return
+
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        for row in data:
+            self.table.insert("", tk.END, values=row)
     def edit_any_cell(self, event, table):
         region = table.identify("region", event.x, event.y)
         if region != "cell":
@@ -626,3 +799,17 @@ class TaskApp:
 
         entry.bind("<Return>", save)
         entry.bind("<FocusOut>", save)
+
+    def save_table_to_task(self, data):
+        task = self.get_selected_task()
+        if not task:
+            return
+
+        folder = Path("tasks") / task["folder_id"]
+        folder.mkdir(parents=True, exist_ok=True)
+
+        path = folder / "table.json"
+
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
