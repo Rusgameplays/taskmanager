@@ -328,19 +328,6 @@ class TaskApp:
         self.root.clipboard_append(text)
         self.root.update()
 
-    def set_status(self, status):
-        sel = self.tree.selection()
-        if not sel:
-            return
-
-        task = self.get_selected_task()
-        if not task:
-            return
-        task["status"] = status
-
-        save_tasks(self.tasks)
-        self.refresh_table()
-
     def copy_all_ips(self):
         if not hasattr(self, "table"):
             return
@@ -462,9 +449,9 @@ class TaskApp:
             width=15
         ).pack(side=tk.LEFT)
 
-        tk.Button(self.filter_frame, text="Добавить", command=self.add_task).pack(side=tk.LEFT, padx=5, pady=5)
-        tk.Button(self.filter_frame, text="Удалить", command=self.delete_task).pack(side=tk.LEFT, padx=5, pady=5)
-        tk.Button(self.filter_frame, text="Для отчета", command=self.open_report).pack(side=tk.LEFT, padx=5, pady=5)
+        tk.Button(self.filter_frame, text="+", command=self.add_task).pack(side=tk.LEFT, padx=5, pady=5)
+        tk.Button(self.filter_frame, text="-", command=self.delete_task).pack(side=tk.LEFT, padx=5, pady=5)
+        tk.Button(self.filter_frame, text="Отчет", command=self.open_report).pack(side=tk.LEFT, padx=5, pady=5)
 
 
         self.tree = ttk.Treeview(self.left, columns=("ID", "Name", "Status"), show="headings")
@@ -479,26 +466,30 @@ class TaskApp:
         self.bottom_panel = ttk.Frame(self.right)
         self.bottom_panel.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
+        # фрейм для кнопок
+        self.buttons_row = ttk.Frame(self.bottom_panel)
+        self.buttons_row.pack(fill=tk.X, pady=5)
+
         btn_load = tk.Button(
-            self.bottom_panel,
+            self.buttons_row,
             text="Загрузить DOCX",
             command=self.load_docx
         )
-        btn_load.pack(fill=tk.X, pady=5)
+        btn_load.pack(side=tk.LEFT, padx=5)
 
         btn_copy_ip = tk.Button(
-            self.bottom_panel,
+            self.buttons_row,
             text="Скопировать IP",
             command=self.copy_all_ips
         )
-        btn_copy_ip.pack(fill=tk.X, pady=5)
+        btn_copy_ip.pack(side=tk.LEFT, padx=5)
 
-        btn_filt_segment=tk.Button(
-            self.bottom_panel,
+        btn_filt_segment = tk.Button(
+            self.buttons_row,
             text="Фильтр Segment",
             command=self.open_segment_filter
         )
-        btn_filt_segment.pack(fill=tk.X, pady=5)
+        btn_filt_segment.pack(side=tk.LEFT, padx=5)
 
         self.table = ttk.Treeview(
             self.bottom_panel,

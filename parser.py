@@ -8,7 +8,6 @@ def extract_docx_table(path):
 
     root = ET.fromstring(xml)
 
-    # namespace-safe поиск
     ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
 
     rows = []
