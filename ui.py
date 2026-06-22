@@ -274,6 +274,7 @@ class TaskApp:
 
         self.save_table_to_task(filtered)
         self.apply_segment_filter()
+        self.update_ip_count()
 
     def add_task(self):
         folder_id = str(uuid.uuid4())
@@ -416,6 +417,7 @@ class TaskApp:
                 continue
 
             self.table.insert("", tk.END, values=row)
+        self.update_ip_count()
 
 
     def build_ui(self):
@@ -504,7 +506,20 @@ class TaskApp:
             self.table.heading(f"c{i + 1}", text=h)
             self.table.column(f"c{i + 1}", width=120)
 
+        self.ip_count_label = tk.Label(
+            self.bottom_panel,
+            text="IP: 0",
+            bg=bg,
+            fg=fg,
+            anchor="w"
+        )
+        self.ip_count_label.pack(fill=tk.X, pady=5)
+
+
         self.table.pack(fill=tk.BOTH, expand=True)
+
+
+
 
         # events
         self.tree.bind("<<TreeviewSelect>>", self.on_select)
@@ -515,6 +530,21 @@ class TaskApp:
         self.filter_name.trace_add("write", lambda *args: self.refresh_table())
         self.filter_status.trace_add("write", lambda *args: self.refresh_table())
 
+    def update_ip_count(self):
+        if not hasattr(self, "table"):
+            return
+
+        count = 0
+
+        for item in self.table.get_children():
+            row = self.table.item(item)["values"]
+
+            if len(row) >= 5:
+                ip = str(row[4]).strip()
+                if ip:
+                    count += 1
+
+        self.ip_count_label.config(text=f"IP: {count}")
 
     def refresh_table(self):
         self.tree.delete(*self.tree.get_children())
@@ -711,6 +741,8 @@ class TaskApp:
 
         for row in data:
             self.table.insert("", tk.END, values=row)
+        self.update_ip_count()
+
     def edit_any_cell(self, event, table):
         region = table.identify("region", event.x, event.y)
         if region != "cell":
