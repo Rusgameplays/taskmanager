@@ -265,7 +265,7 @@ class TaskApp:
         filtered = []
         for r in rows[1:]:
             if len(r) >= 8:
-                filtered.append([r[0], r[1], r[2], r[4], r[5], r[7]])
+                filtered.append([r[1], r[2], r[3], r[5], r[6], r[8]])
 
         self.table.delete(*self.table.get_children())
 
@@ -310,7 +310,6 @@ class TaskApp:
         if not task:
             return
 
-        # защита для старых задач
         self.ensure_folder_id(task)
 
         folder_path = Path("tasks") / task["folder_id"]
