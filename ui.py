@@ -518,7 +518,8 @@ class TaskApp:
 
         self.table.pack(fill=tk.BOTH, expand=True)
 
-
+        self.table.bind("<Button-3>", self.show_table_menu)
+        self.table.bind("<Control-Button-1>", self.show_table_menu)
 
 
         # events
@@ -529,6 +530,59 @@ class TaskApp:
 
         self.filter_name.trace_add("write", lambda *args: self.refresh_table())
         self.filter_status.trace_add("write", lambda *args: self.refresh_table())
+
+    def show_table_menu(self, event):
+        row = self.table.identify_row(event.y)
+
+        if not row:
+            return
+
+        self.table.selection_set(row)
+
+        menu = tk.Menu(self.root, tearoff=0)
+
+        menu.add_command(
+            label="Копировать IP",
+            command=lambda: self.copy_selected_ip()
+        )
+
+        menu.add_command(
+            label="Копировать строку",
+            command=lambda: self.copy_selected_row()
+        )
+
+        menu.tk_popup(event.x_root, event.y_root)
+
+    def copy_selected_ip(self):
+        sel = self.table.selection()
+
+        if not sel:
+            return
+
+        values = self.table.item(sel[0])["values"]
+
+        if len(values) < 5:
+            return
+
+        ip = str(values[4])
+
+        self.root.clipboard_clear()
+        self.root.clipboard_append(ip)
+        self.root.update()
+
+    def copy_selected_row(self):
+        sel = self.table.selection()
+
+        if not sel:
+            return
+
+        values = self.table.item(sel[0])["values"]
+
+        text = "\t".join(map(str, values))
+
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+        self.root.update()
 
     def update_ip_count(self):
         if not hasattr(self, "table"):
