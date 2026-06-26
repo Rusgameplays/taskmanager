@@ -254,8 +254,17 @@ class TaskApp:
         if not task:
             return
 
+        task = self.get_selected_task()
+        if not task:
+            return
+
+        folder = Path("tasks") / task["folder_id"]
+        folder.mkdir(parents=True, exist_ok=True)
+
         path = filedialog.askopenfilename(
-            filetypes=[("Word files", "*.docx")]
+            initialdir=str(folder),
+            filetypes=[("Word files", "*.docx")],
+            title="Выберите DOCX"
         )
         if not path:
             return
