@@ -547,11 +547,37 @@ class TaskApp:
         )
 
         menu.add_command(
+            label="Копировать БД",
+            command=lambda: self.copy_selected_db()
+        )
+
+        menu.add_command(
             label="Копировать строку",
             command=lambda: self.copy_selected_row()
         )
 
+
+
         menu.tk_popup(event.x_root, event.y_root)
+
+    def copy_selected_db(self):
+        sel = self.table.selection()
+
+        if not sel:
+            return
+
+        values = self.table.item(sel[0])["values"]
+
+
+        if len(values) < 1:
+            return
+
+        db = str(values[2])
+
+        self.root.clipboard_clear()
+        self.root.clipboard_append(db)
+        self.root.update()
+
 
     def copy_selected_ip(self):
         sel = self.table.selection()
